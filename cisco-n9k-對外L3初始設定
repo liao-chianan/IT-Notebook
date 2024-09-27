@@ -171,6 +171,8 @@ conf t
 ipv6 route 2001:288:12xx::/48 2001:288:12xx:FFFF::1 vlan 20 vrf default 
 end
 
+## 預設ssh和snmp會直接開放，為了確保安全性，建議加上v4的access-group、v6的access-list，並在vty與vlan設定對應的存取權限  
+
 
 ## 韌體更新相關步驟  
 ------------------------------------------------------------  
