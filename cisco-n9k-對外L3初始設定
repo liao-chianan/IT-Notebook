@@ -1,0 +1,214 @@
+### 資料日期2024-08
+
+## 重置交換器
+en
+write erase   
+輸入y確認重置  
+reload
+輸入y確認重開機，重開機要等5分鐘以上  
+
+
+
+## 用console線連接設定
+用rj45 to usb專用console線材連接後方console port與筆電 
+會自動抓到serial port (com01或其他)， 用putty 設定好連上去  
+
+
+
+初始畫面會出現問要不要做POAP設定  
+Abort Power On Auto Provisioning [yes - continue with normal setup, no - continue with Power On Auto Provisioning] (yes/no)[no]  
+
+輸入yes 改為進行手動設定  
+Do you want to enforce secure password standard (yes/no) [y]:  
+視需求要不要啟用密碼複雜度  
+輸入admin的密碼(有開複雜度就需要8碼以上含特殊符號)  
+  
+Would you like to enter the basic configuration dialog (yes/no):  
+選no進入手動設定，接著輸入admin帳密後就可以開始手動設定了  
+
+
+
+## 設定hostname與domain  
+en  
+conf t  
+hostname cisco-n9k  
+ip domain-name syps.tp.edu.tw  
+end  
+
+
+## 啟用第三方光纖模組支援  
+en  
+conf t   
+service unsupported-transceiver  
+end  
+
+## 停用密碼強度檢查(自行決定要不要)  
+no password strength-check  
+
+## 新增特權使用者與密碼  
+en  
+conf t   
+username admin001 role priv-15  
+username admin001 password admin001  
+end  
+
+## 設定console , vty telnet , ssh 都必須輸入帳號密碼，遠端登入限制只能使用ssh  
+(5分鐘timeout後自動斷線)  
+en  
+conf t   
+line con   
+ exec-timeout 5  
+line vty   
+ exec-timeout 5    
+end  
+
+## 建立rsa密鑰(ssh功能，長度建議2048以上)  
+en  
+conf t  
+crypto key generate rsa modulus 2048  
+end  
+
+
+## 設定後方management port作為管理用
+(management vrf有自己獨立的設定)  
+(假設mgmt ip為192.168.77.38/23 gateway為192.168.77.254 log紀錄伺服器為192.168.77.172)  
+(ntp這邊用台灣的ntp 118.163.81.62，dns用google dns 8.8.8.8)  
+conf t
+interface mgmt 0
+ip address 192.168.77.38 255.255.254.0
+no shutdown 
+end  
+
+conf t
+vrf context management
+feature lldp 
+ip route 0.0.0.0/0 192.168.77.254
+ip name-server 8.8.8.8
+exit
+ntp server 118.163.81.62 USe-vrf Management
+logging server 192.168.77.172 use-vrf management
+end  
+
+
+### 測試ping內部與外部是否有通(要指定mgmt這個vrf)  
+ping 192.168.77.254 vrf management  repeat 3 
+ping 1.1.1.1 vrf management  repeat 3 
+ping dns.google.com vrf management  repeat 3 
+
+
+## 設定snmp功能  
+(假設要設定的community string為librenms-snmp)  
+en  
+conf t  
+snmp-server community librenms-snmp  
+snmp-server enable traps snmp  
+end  
+
+
+## 存個檔來設定vlan  
+copy run start  
+
+
+## 啟用vlan interface 才能設定ip以及路由  
+en  
+conf t  
+feature interface-vlan  
+end  
+
+
+##新增vlan 10,20,30,40,50  
+en  
+conf t  
+vlan 10,20,30,40,50
+end  
+
+
+##設定vlan 10的ip與指定port(接台智光)  
+en  
+conf t  
+interface Vlan10
+description TAFIO-ONT
+ip address 172.31.xx.xx 255.255.255.252  
+ipv6 address 2001:288:13FF::OOOO/124  
+no shutdown
+no autostate
+int ethernet 1/1  
+switchport  
+switchport mode access  
+switchport access vlan 10 
+no shutdown   
+end  
+
+
+##設定vlan 20的ip與指定port(接校內防火牆)  
+en  
+conf t  
+interface Vlan20
+description SYPS-Firewall
+
+ip address 163.21.xx.254 255.255.255.0  
+ipv6 address 2001:288:12xx:FFFF::FFFF/64 
+no shutdown  
+no autostate
+int ethernet 1/2  
+switchport  
+switchport mode access  
+switchport access vlan 20  
+no shutdown  
+end  
+
+
+##設定ipv4與ipv6預設的對外路由  
+en  
+conf t  
+ip route 0.0.0.0/0 172.31.xx.xx vlan 10 vrf default 
+ipv6 route ::/0 2001:288:13FF::OOOO vlan 10 vrf default  
+end  
+
+##設定ipv6外到內的路由(指定丟給fortigate)  
+en  
+conf t  
+ipv6 route 2001:288:12xx::/48 2001:288:12xx:FFFF::1 vlan 20 vrf default 
+end
+
+
+## 韌體更新相關步驟  
+------------------------------------------------------------  
+## 啟用scp/sftp server(要更新韌體再啟用即可，之後可以關閉)  
+en  
+conf t  
+feature sftp-server  
+feature scp-server  
+end  
+
+
+## 驗證韌體檔案的md5與sha512是否與官網一致  
+(假設新韌體已經透過sftp/scp傳到switch上了)  
+en  
+conf t  
+show file bootflash:///nxos64-cs.10.4.3.F.bin md5sum  
+show file bootflash:///nxos64-cs.10.4.3.F.bin sha512sum  
+end  
+
+## 選擇下次開機使用的韌體版本並安裝  
+## (安裝需要數分鐘，按y確認，會自動重開機)  
+en  
+conf t  
+boot nxos bootflash:///nxos64-cs.10.4.3.F.bin  
+install all nxos bootflash:///nxos64-cs.10.4.3.F.bin  
+
+### 檢查硬體裝置  
+show hardware  
+show version  
+
+### 檢查韌體資訊  
+show software authenticity running  
+show license all  
+
+### 檢查系統負載
+show processes cpu  
+show processes memory   
+
+
+升級成功後如果要移除舊檔清出空間  
+install remove inactive  
