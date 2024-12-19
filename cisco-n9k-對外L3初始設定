@@ -214,3 +214,21 @@ show processes memory
 
 升級成功後如果要移除舊檔清出空間  
 install remove inactive  
+
+##附註  
+##關閉面板gnss紅燈恆亮  
+conf t  
+feature frequency-synchronization  
+no feature frequency-synchronization  
+
+gnss-receiver sync 01/02
+shutdown
+end  
+
+##調整風扇轉速(最低50%)  
+show environment fan detail
+
+conf t 
+hardware fan-zone 1 raise-speed 
+end
+
