@@ -13,27 +13,27 @@ https://www.alextwl.idv.tw/memo/2016/02/freeradius-eap-gtc-or-eap-ttls-with-inne
 
 
 ## --先更新--  
+```
 apt update -y;apt dist-upgrade -y
-
-##--調整時區以及語系--  
+```
+## --調整時區以及語系--  
+```
 dpkg-reconfigure tzdata  
 dpkg-reconfigure locales  
-
+```
 ## --安裝基本所需套件--  
+```
 apt install curl wget sudo  net-tools freeradius freeradius-ldap freeradius-utils ldap-utils libldap-common  eapoltest -y
-
+```
 ## --取得google ldap 憑證--   
  (會得到crt憑證和ke金鑰兩個檔案，有效期3年，以及開設的一組驗證帳號密碼)  
 參考
 https://support.google.com/a/answer/9048541?hl=zh-Hant
 
-
-
-
-
-##確認ssl連接是否正常(正確訊息Verify return code: 0 (ok))
+##確認ssl連接是否正常(正確訊息Verify return code: 0 (ok))  
+```
 openssl s_client -connect ldap.google.com:636
-
+```
 ##把取得的憑證傳到你的radius上  
 
 假設憑證改名後放在/etc/freeradius/3.0/certs/ldap-client.crt  
@@ -41,9 +41,9 @@ openssl s_client -connect ldap.google.com:636
 
 ## --用指令測試憑證ldap憑證金鑰與帳號密碼是否能使用--  
 (成功會列出網域內使用者)
-
+```
 LDAPTLS_CERT=/etc/freeradius/3.0/certs/ldap-client.crt LDAPTLS_KEY=/etc/freeradius/3.0/certs/ldap-client.key ldapsearch -x  -H ldaps://ldap.google.com:636 -b ou=users,dc=yyps,dc=tp,dc=edu,dc=tw -D '從google取得的驗證帳號' -w '從google取得的驗證密碼'
-
+```
 
 ## --開始進行freeradius設定檔修改--  
 
@@ -98,10 +98,11 @@ nano /etc/freeradius/3.0/sites-enabled/default
 
 
 #### 複製ldap模組設定檔案並修改內容(記得改存取權限給freerad)  
+```
 cp /etc/freeradius/3.0/mods-available/ldap /etc/freeradius/3.0/mods-enabled/ldap  
 chown freerad:freerad  
 /etc/freeradius/3.0/mods-enabled/ldap
- 
+```
 
 nano /etc/freeradius/3.0/mods-enabled/ldap 
 修改以下參數  
@@ -216,15 +217,21 @@ log {
  
 
 ## --測試設定檔是否能成功運作--  
+```
 systemctl stop freeradius  
 freeradius -XC 
+```
+沒有出現錯誤訊息就是設定檔案正常  
 
 重新啟動服務  
+```
 systemctl start freeradius  
+```
 
 或進入debug模式運作方便觀測  
-freeradius -X  
-  
+```
+freeradius -X
+```
 .  
 ### 補充：針對不同google workspace群組允許放行與設定vlan  
 **(此區段非必要，根據學校需求再設定)**  
@@ -320,22 +327,23 @@ https://framebyframewifi.net/2017/01/29/use-lets-encrypt-certificates-with-freer
 把憑證檔案privkey.pem還有fullchain.pem  
 複製到/etc/freeradius/3.0/cert/letsencrypt中  
 
-修改 /etc/freeradius/3.0/mods-enabled/eap  檔案
-找到tls-config tls-common 區塊
+修改 /etc/freeradius/3.0/mods-enabled/eap  檔案  
+找到tls-config tls-common 區塊  
 
-private_key_file = /etc/ssl/private/ssl-cert-snakeoil.key 
-改成跟letsencrypt拿到的/etc/freeradius/3.0/certs/letsencrypt/privkey.pem
+private_key_file = /etc/ssl/private/ssl-cert-snakeoil.key  
+改成跟letsencrypt拿到的/etc/freeradius/3.0/certs/letsencrypt/privkey.pem  
 
 certificate_file = /etc/ssl/certs/ssl-cert-snakeoil.pem   
-改成跟letsencrypt拿到的/etc/freeradius/3.0/certs/letsencrypt/fullchain.pem
+改成跟letsencrypt拿到的/etc/freeradius/3.0/certs/letsencrypt/fullchain.pem  
 
-重啟radius服務
-systemctl restart freeradius
+重啟radius服務  
+systemctl restart freeradius  
 
-
+-----------------------------------------------------  
 **[IOS的連線方式]**  
 輸帳密然後信任憑證即可  
 
+-----------------------------------------------------  
 **[Android11以後的連線方式]**  
 
 EAP方法選[PEAP]  
@@ -348,11 +356,12 @@ CA憑證選[使用系統憑證]或者[首次信任]
 匿名身分留空  
 密碼輸入Google網域使用者密碼  
 
+-----------------------------------------------------  
 **[Windows的連線方式]**  
 windows作業系統沒有原生支援peap + gtc，因此需要安裝GTC client，安裝與設定可以參考這邊
 https://wireless.kh.edu.tw/archives/250/
 
-
+-----------------------------------------------------  
 #### 從另一台linux機器測試的方式  
 用radtest + pap驗證 以及 eapoltest + ttls + gtc驗證  
 測試是否能運作正常  
@@ -385,7 +394,9 @@ eapol_test -a 192.168.1.xx -c yyps-google-test.conf  -s testing123 -N '31:s:88:8
 
 **成功會回傳SUCCESS**  
 
-P.S. 只用fortigate的AP，要拉google ldap進來做驗證，不用特別架設radius，直接參考底下這篇就好
+-----------------------------------------------------  
+
+**P.S. 只用fortigate的AP，要拉google ldap進來做驗證，不用特別架設radius，直接參考底下這篇就好** 
 
 https://community.fortinet.com/t5/FortiGate/Technical-Tip-Google-Suite-LDAP-integration-with-FortiGate-using/ta-p/244848
 
