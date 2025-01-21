@@ -45,7 +45,7 @@ openssl s_client -connect ldap.google.com:636
 LDAPTLS_CERT=/etc/freeradius/3.0/certs/ldap-client.crt LDAPTLS_KEY=/etc/freeradius/3.0/certs/ldap-client.key ldapsearch -x  -H ldaps://ldap.google.com:636 -b ou=users,dc=yyps,dc=tp,dc=edu,dc=tw -D '從google取得的驗證帳號' -w '從google取得的驗證密碼'
 
 
-## --開始進行freerasiu設定檔修改--  
+## --開始進行freeradius設定檔修改--  
 
 #### 修改允許存取radius的ip來源與認證碼(你的AP使用的IP範圍)  
 
